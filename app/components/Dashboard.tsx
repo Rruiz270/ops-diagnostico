@@ -13,11 +13,13 @@ import {
 } from "../data/operational-data";
 
 const PagamentosLive = dynamic(() => import("./PagamentosLive"), { ssr: false });
+const ReducaoDespesas = dynamic(() => import("./ReducaoDespesas"), { ssr: false });
 
-type Tab = "resumo" | "pagamentos" | "cruzamentos" | "manuais" | "roi" | "plano" | "financeiro";
+type Tab = "resumo" | "reducao" | "pagamentos" | "cruzamentos" | "manuais" | "roi" | "plano" | "financeiro";
 
 const TAB_LABELS: Record<Tab, string> = {
   resumo: "Visao Geral",
+  reducao: "Reducao Despesas",
   pagamentos: "Pagamentos Live",
   financeiro: "Financeiro",
   cruzamentos: "Cruzamentos",
@@ -1107,6 +1109,7 @@ export default function Dashboard() {
 
       <main className="max-w-7xl mx-auto px-4 py-6">
         {tab === "resumo" && <TabResumo />}
+        {tab === "reducao" && <ReducaoDespesas />}
         {tab === "pagamentos" && <PagamentosLive />}
         {tab === "financeiro" && <TabFinanceiro />}
         {tab === "cruzamentos" && <TabCruzamentos />}
