@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import dynamic from "next/dynamic";
 import {
   colaboradores,
   cruzamentos,
@@ -11,10 +12,13 @@ import {
   resumoFinanceiro,
 } from "../data/operational-data";
 
-type Tab = "resumo" | "cruzamentos" | "manuais" | "roi" | "plano" | "financeiro";
+const PagamentosLive = dynamic(() => import("./PagamentosLive"), { ssr: false });
+
+type Tab = "resumo" | "pagamentos" | "cruzamentos" | "manuais" | "roi" | "plano" | "financeiro";
 
 const TAB_LABELS: Record<Tab, string> = {
   resumo: "Visao Geral",
+  pagamentos: "Pagamentos Live",
   financeiro: "Financeiro",
   cruzamentos: "Cruzamentos",
   manuais: "Atividades Manuais",
@@ -1103,6 +1107,7 @@ export default function Dashboard() {
 
       <main className="max-w-7xl mx-auto px-4 py-6">
         {tab === "resumo" && <TabResumo />}
+        {tab === "pagamentos" && <PagamentosLive />}
         {tab === "financeiro" && <TabFinanceiro />}
         {tab === "cruzamentos" && <TabCruzamentos />}
         {tab === "manuais" && <TabManuais />}
