@@ -7,10 +7,23 @@ async function fetchJS(file: string): Promise<string> {
   return res.text();
 }
 
-function parseJSVar(js: string, varName: string): unknown {
-  const regex = new RegExp(`var ${varName}\\s*=\\s*`);
-  const cleaned = js.replace(regex, "").replace(/;\s*$/, "");
-  return JSON.parse(cleaned);
+function extractJSArray(js: string, varName: string): unknown[] {
+  const marker = `var ${varName} = `;
+  const start = js.indexOf(marker);
+  if (start === -1) return [];
+  const arrStart = js.indexOf("[", start);
+  if (arrStart === -1) return [];
+  let depth = 0;
+  let arrEnd = -1;
+  for (let i = arrStart; i < js.length; i++) {
+    if (js[i] === "[") depth++;
+    else if (js[i] === "]") {
+      depth--;
+      if (depth === 0) { arrEnd = i; break; }
+    }
+  }
+  if (arrEnd === -1) return [];
+  return JSON.parse(js.substring(arrStart, arrEnd + 1));
 }
 
 interface Despesa {
@@ -48,24 +61,8 @@ export async function GET() {
       fetchJS("dashboard_data.js"),
     ]);
 
-    const betterData = parseJSVar(despesasJS, "data") as Despesa[];
-    const bmaAll = parseJSVar(
-      bmaJS.split("var bmaAll = ")[1]?.split(";\n")[0] || "[]",
-      ""
-    ) as BmaEntry[];
-
-    let bmaAllParsed: BmaEntry[];
-    try {
-      const bmaAllRaw = bmaJS.split("var bmaAll = ")[1];
-      if (bmaAllRaw) {
-        const jsonStr = bmaAllRaw.replace(/;\s*(var\s|$)[\s\S]*/, "");
-        bmaAllParsed = JSON.parse(jsonStr);
-      } else {
-        bmaAllParsed = [];
-      }
-    } catch {
-      bmaAllParsed = [];
-    }
+    const betterData = extractJSArray(despesasJS, "data") as Despesa[];
+    const bmaAllParsed = extractJSArray(bmaJS, "bmaAll") as BmaEntry[];
 
     const all2026: Despesa[] = [];
 
@@ -112,7 +109,7 @@ export async function GET() {
       .map(([nome, data]) => ({ nome, ...data }))
       .sort((a, b) => b.total - a.total);
 
-    const dashData = parseJSVar(dashJS, "dashData") as Array<{
+    const dashData = extractJSArray(dashJS, "dashData") as Array<{
       m: string;
       rec: number;
       desp: number;
