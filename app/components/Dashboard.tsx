@@ -7,12 +7,15 @@ import {
   atividadesManuais,
   planoAcao,
   matrizAtividades,
+  dadosFinanceiros,
+  resumoFinanceiro,
 } from "../data/operational-data";
 
-type Tab = "resumo" | "cruzamentos" | "manuais" | "roi" | "plano";
+type Tab = "resumo" | "cruzamentos" | "manuais" | "roi" | "plano" | "financeiro";
 
 const TAB_LABELS: Record<Tab, string> = {
   resumo: "Visao Geral",
+  financeiro: "Financeiro",
   cruzamentos: "Cruzamentos",
   manuais: "Atividades Manuais",
   roi: "ROI Automacao",
@@ -834,8 +837,225 @@ function TabPlano() {
   );
 }
 
+const STATUS_COLORS = {
+  ativo: "bg-green-500/20 text-green-400 border-green-500/30",
+  demissao_planejada: "bg-red-500/20 text-red-400 border-red-500/30",
+  em_avaliacao: "bg-amber-500/20 text-amber-400 border-amber-500/30",
+  demitido: "bg-slate-500/20 text-slate-400 border-slate-500/30",
+};
+
+const STATUS_LABELS = {
+  ativo: "Ativo",
+  demissao_planejada: "Demissao Planejada",
+  em_avaliacao: "Em Avaliacao",
+  demitido: "Demitido",
+};
+
+function TabFinanceiro() {
+  const { meses, economiaDemissoes, professoresPJ } = resumoFinanceiro;
+  const ultimoMes = meses[meses.length - 1];
+  const totalEconomiaMensal = economiaDemissoes.fase1.mensal + economiaDemissoes.fase2.mensal + economiaDemissoes.fase3.mensal;
+  const totalEconomiaAnual = economiaDemissoes.fase1.anual + economiaDemissoes.fase2.anual + economiaDemissoes.fase3.anual;
+  const totalRescisao = economiaDemissoes.fase1.rescisao;
+  const totalProfessores = professoresPJ.reduce((s, p) => s + p.custoMensal, 0);
+
+  return (
+    <div className="space-y-6 animate-fade-in">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <SummaryCard
+          label="Resultado Mai/2026"
+          value={`-R$${Math.abs(ultimoMes.resultado).toLocaleString("pt-BR")}`}
+          sub="Prejuizo no mes"
+          accent="text-red-400"
+        />
+        <SummaryCard
+          label="Inadimplencia"
+          value={`R$${ultimoMes.inadimplencia.toLocaleString("pt-BR")}`}
+          sub="Cresceu 307% desde Jan"
+          accent="text-amber-400"
+        />
+        <SummaryCard
+          label="Economia c/ Cortes"
+          value={`R$${totalEconomiaMensal.toLocaleString("pt-BR")}/m`}
+          sub={`R$${totalEconomiaAnual.toLocaleString("pt-BR")}/ano`}
+          accent="text-green-400"
+        />
+        <SummaryCard
+          label="Custo Rescisoes"
+          value={`R$${totalRescisao.toLocaleString("pt-BR")}`}
+          sub={`Payback em ${Math.ceil(totalRescisao / totalEconomiaMensal)} meses`}
+          accent="text-blue-400"
+        />
+      </div>
+
+      <div className="bg-[#1e293b] rounded-xl p-6 border border-[#334155]">
+        <h3 className="text-lg font-semibold mb-4 text-white">Evolucao Financeira 2026</h3>
+        <div className="space-y-3">
+          {meses.map((m) => {
+            const maxVal = Math.max(...meses.map(x => Math.max(x.receita, x.despesa)));
+            return (
+              <div key={m.m} className="space-y-1">
+                <div className="flex justify-between text-xs text-slate-400">
+                  <span className="w-16 font-mono">{m.m.split("/")[0]}</span>
+                  <span className={m.resultado >= 0 ? "text-green-400" : "text-red-400"}>
+                    {m.resultado >= 0 ? "+" : ""}R${m.resultado.toLocaleString("pt-BR")}
+                  </span>
+                </div>
+                <div className="flex gap-1 h-5">
+                  <div
+                    className="bg-green-500/40 rounded-l flex items-center justify-end pr-1 text-[9px] text-green-300"
+                    style={{ width: `${(m.receita / maxVal) * 100}%` }}
+                  >
+                    R${(m.receita / 1000).toFixed(0)}k
+                  </div>
+                  <div
+                    className="bg-red-500/40 rounded-r flex items-center justify-end pr-1 text-[9px] text-red-300"
+                    style={{ width: `${(m.despesa / maxVal) * 100}%` }}
+                  >
+                    R${(m.despesa / 1000).toFixed(0)}k
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+          <div className="flex gap-4 mt-2 text-xs text-slate-500">
+            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-green-500/40" /> Receita</span>
+            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-red-500/40" /> Despesa</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-[#1e293b] rounded-xl p-6 border border-[#334155]">
+        <h3 className="text-lg font-semibold mb-4 text-white">Folha de Pagamento por Colaborador</h3>
+        <div className="space-y-2">
+          {colaboradores
+            .filter((c) => dadosFinanceiros[c.id])
+            .sort((a, b) => (dadosFinanceiros[b.id]?.custoTotalEstimado || 0) - (dadosFinanceiros[a.id]?.custoTotalEstimado || 0))
+            .map((c) => {
+              const fin = dadosFinanceiros[c.id];
+              if (!fin) return null;
+              const maxCusto = Math.max(...Object.values(dadosFinanceiros).map(f => f.custoTotalEstimado));
+              return (
+                <div key={c.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-800/50 transition-colors">
+                  <div className="w-36 shrink-0">
+                    <span className="text-sm text-slate-300">{c.nome}</span>
+                  </div>
+                  <div className="flex-1 bg-slate-700/50 rounded-full h-6 overflow-hidden">
+                    <div
+                      className="h-full rounded-full flex items-center justify-end pr-2 text-[10px] font-bold text-white"
+                      style={{
+                        width: `${Math.max((fin.custoTotalEstimado / maxCusto) * 100, 10)}%`,
+                        backgroundColor: fin.status === "demissao_planejada" ? "#ef4444" : fin.status === "em_avaliacao" ? "#f59e0b" : c.cor,
+                      }}
+                    >
+                      R${fin.custoTotalEstimado.toLocaleString("pt-BR")}
+                    </div>
+                  </div>
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-medium border ${STATUS_COLORS[fin.status]}`}>
+                    {STATUS_LABELS[fin.status]}
+                  </span>
+                </div>
+              );
+            })}
+        </div>
+        <div className="mt-4 pt-4 border-t border-[#334155] grid grid-cols-3 gap-4">
+          <div>
+            <p className="text-xs text-slate-500">Folha Total</p>
+            <p className="text-lg font-bold text-white">
+              R${Object.values(dadosFinanceiros).reduce((s, f) => s + f.custoTotalEstimado, 0).toLocaleString("pt-BR")}/mes
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-slate-500">Marcados p/ Demissao</p>
+            <p className="text-lg font-bold text-red-400">
+              R${Object.values(dadosFinanceiros).filter(f => f.status === "demissao_planejada").reduce((s, f) => s + f.custoTotalEstimado, 0).toLocaleString("pt-BR")}/mes
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-slate-500">Em Avaliacao</p>
+            <p className="text-lg font-bold text-amber-400">
+              R${Object.values(dadosFinanceiros).filter(f => f.status === "em_avaliacao").reduce((s, f) => s + f.custoTotalEstimado, 0).toLocaleString("pt-BR")}/mes
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid md:grid-cols-2 gap-6">
+        <div className="bg-[#1e293b] rounded-xl p-6 border border-[#334155]">
+          <h3 className="text-lg font-semibold mb-4 text-white">Plano de Demissoes</h3>
+          {[
+            { fase: "Fase 1 (Semana 1)", data: economiaDemissoes.fase1, color: "red" },
+            { fase: "Fase 2 (30 dias)", data: economiaDemissoes.fase2, color: "amber" },
+            { fase: "Fase 3 (60 dias)", data: economiaDemissoes.fase3, color: "amber" },
+          ].map(({ fase, data, color }) => (
+            <div key={fase} className="mb-4 p-3 rounded-lg bg-slate-800/50">
+              <p className={`text-sm font-medium text-${color}-400 mb-2`}>{fase}</p>
+              <div className="flex flex-wrap gap-1 mb-2">
+                {data.pessoas.map((id) => <PersonBadge key={id} id={id} />)}
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <span className="text-slate-500">Economia mensal</span>
+                  <p className="text-green-400 font-medium">R${data.mensal.toLocaleString("pt-BR")}</p>
+                </div>
+                <div>
+                  <span className="text-slate-500">Economia anual</span>
+                  <p className="text-green-400 font-medium">R${data.anual.toLocaleString("pt-BR")}</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="bg-[#1e293b] rounded-xl p-6 border border-[#334155]">
+          <h3 className="text-lg font-semibold mb-4 text-white">Professores CLT/PJ (BMA)</h3>
+          <p className="text-xs text-slate-500 mb-3">Verificar se fazem atividades alem de dar aula</p>
+          <div className="space-y-2">
+            {professoresPJ.sort((a, b) => b.custoMensal - a.custoMensal).map((p) => (
+              <div key={p.nome} className="flex items-center justify-between p-2 rounded-lg bg-slate-800/50">
+                <span className="text-sm text-slate-300">{p.nome}</span>
+                <span className="text-sm font-medium text-amber-400">R${p.custoMensal.toLocaleString("pt-BR")}</span>
+              </div>
+            ))}
+          </div>
+          <div className="mt-3 pt-3 border-t border-[#334155]">
+            <div className="flex justify-between">
+              <span className="text-xs text-slate-500">Total professores CLT</span>
+              <span className="text-sm font-bold text-amber-400">R${totalProfessores.toLocaleString("pt-BR")}/mes</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-[#1e293b] rounded-xl p-6 border border-red-500/30">
+        <h3 className="text-lg font-semibold mb-2 text-red-400">Alerta: Receita em Queda</h3>
+        <p className="text-sm text-slate-400 mb-4">
+          Receita caiu 65% de Jan a Mai (R$823k para R$287k). Cortes de custo sao necessarios mas insuficientes.
+          Resultado medio 2026 e -R$67k/mes. Mesmo com todos os cortes listados (-R$30k), ainda faltam ~R$37k/mes para equilibrar.
+          Precisa atacar receita e inadimplencia (R$172k pendentes) simultaneamente.
+        </p>
+        <div className="grid grid-cols-3 gap-4 text-center">
+          <div className="p-3 rounded-lg bg-red-500/10">
+            <p className="text-2xl font-bold text-red-400">-R$67k</p>
+            <p className="text-xs text-slate-500">Prejuizo medio/mes</p>
+          </div>
+          <div className="p-3 rounded-lg bg-green-500/10">
+            <p className="text-2xl font-bold text-green-400">-R$30k</p>
+            <p className="text-xs text-slate-500">Economia c/ cortes</p>
+          </div>
+          <div className="p-3 rounded-lg bg-amber-500/10">
+            <p className="text-2xl font-bold text-amber-400">-R$37k</p>
+            <p className="text-xs text-slate-500">Gap restante</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const [tab, setTab] = useState<Tab>("resumo");
+  const ultimoMes = resumoFinanceiro.meses[resumoFinanceiro.meses.length - 1];
 
   return (
     <div className="min-h-screen bg-[#0f172a]">
@@ -847,13 +1067,12 @@ export default function Dashboard() {
                 Better Ops Diagnostico
               </h1>
               <p className="text-xs text-slate-500">
-                Mapeamento operacional | 22/05/2026
+                Mapeamento operacional + financeiro | 23/05/2026
               </p>
             </div>
             <div className="flex items-center gap-3 text-xs">
               <span className="px-2.5 py-1 rounded-full bg-red-500/20 text-red-400 border border-red-500/30 animate-pulse-slow">
-                {cruzamentos.filter((c) => c.impacto === "critico").length}{" "}
-                criticos
+                Resultado: -R${Math.abs(ultimoMes.resultado).toLocaleString("pt-BR")}
               </span>
               <span className="px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">
                 {totalHorasManuais}h/sem manuais
@@ -884,6 +1103,7 @@ export default function Dashboard() {
 
       <main className="max-w-7xl mx-auto px-4 py-6">
         {tab === "resumo" && <TabResumo />}
+        {tab === "financeiro" && <TabFinanceiro />}
         {tab === "cruzamentos" && <TabCruzamentos />}
         {tab === "manuais" && <TabManuais />}
         {tab === "roi" && <TabROI />}
@@ -892,7 +1112,7 @@ export default function Dashboard() {
 
       <footer className="border-t border-[#1e293b] py-4 mt-8">
         <p className="text-center text-xs text-slate-600">
-          Better Ops Diagnostico v1.0 | Dados do levantamento de 22/05/2026 |
+          Better Ops Diagnostico v2.0 | Dados financeiros reais BMA Mai/2026 |
           Apenas para uso interno
         </p>
       </footer>

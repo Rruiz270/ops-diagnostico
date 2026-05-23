@@ -44,18 +44,67 @@ export interface AcaoPlano {
   status: "pendente" | "em_andamento" | "concluido";
 }
 
+export interface DadosFinanceiros {
+  salarioLiquido: number;
+  custoTotalEstimado: number;
+  rescisaoEstimada: number;
+  status: "ativo" | "demissao_planejada" | "em_avaliacao" | "demitido";
+}
+
 export const colaboradores: Colaborador[] = [
   { id: "rapha-lima", nome: "Raphael Lima", cargo: "Coord. Operacional / Pedagogico", horario: "7h-16h", tipo: "Gestao", cor: "#3B82F6" },
   { id: "gustavo", nome: "Gustavo", cargo: "CX / Relacionamento B2C", horario: "8h-17h", tipo: "CLT", cor: "#10B981" },
   { id: "ariane", nome: "Ariane", cargo: "Operacional / Salas / Professores", horario: "7h-16h + sabados", tipo: "CLT", cor: "#F59E0B" },
   { id: "val", nome: "Val", cargo: "Operacional / Private / Professores", horario: "Noturno + sabados", tipo: "CLT", cor: "#EF4444" },
   { id: "stephanie", nome: "Stephanie", cargo: "Conteudo / Learning Lab", horario: "Comercial", tipo: "CLT", cor: "#8B5CF6" },
-  { id: "juliana", nome: "Juliana Simonassi", cargo: "Plantonista Pedagogica", horario: "Comercial", tipo: "CLT", cor: "#EC4899" },
-  { id: "aldo", nome: "Aldo", cargo: "Marketing / Redes / CRM", horario: "Comercial", tipo: "CLT", cor: "#06B6D4" },
+  { id: "juliana-simonassi", nome: "Juliana Simonassi", cargo: "Plantonista Pedagogica", horario: "Comercial", tipo: "CLT", cor: "#EC4899" },
+  { id: "aldo", nome: "Aldo", cargo: "Marketing / Redes / CRM", horario: "Comercial", tipo: "PJ", cor: "#06B6D4" },
   { id: "joy", nome: "Joy", cargo: "Design / LPs / Artes", horario: "Comercial", tipo: "CLT", cor: "#F97316" },
   { id: "gilberto", nome: "Gilberto", cargo: "Vendas B2B / Parcerias", horario: "Comercial", tipo: "CLT", cor: "#14B8A6" },
   { id: "luiz", nome: "Luiz", cargo: "Indefinido (ferias)", horario: "N/A", tipo: "CLT", cor: "#6B7280" },
+  { id: "juliana-galdino", nome: "Juliana Galdino", cargo: "Consultora RH/Admin", horario: "Comercial", tipo: "PJ", cor: "#A855F7" },
 ];
+
+export const dadosFinanceiros: Record<string, DadosFinanceiros> = {
+  "rapha-lima": { salarioLiquido: 9910, custoTotalEstimado: 14000, rescisaoEstimada: 0, status: "ativo" },
+  "gustavo": { salarioLiquido: 2727, custoTotalEstimado: 3800, rescisaoEstimada: 0, status: "ativo" },
+  "ariane": { salarioLiquido: 1732, custoTotalEstimado: 2400, rescisaoEstimada: 0, status: "ativo" },
+  "val": { salarioLiquido: 1499, custoTotalEstimado: 2100, rescisaoEstimada: 0, status: "ativo" },
+  "stephanie": { salarioLiquido: 4684, custoTotalEstimado: 6500, rescisaoEstimada: 16500, status: "demissao_planejada" },
+  "juliana-simonassi": { salarioLiquido: 4178, custoTotalEstimado: 5800, rescisaoEstimada: 0, status: "em_avaliacao" },
+  "aldo": { salarioLiquido: 1600, custoTotalEstimado: 1600, rescisaoEstimada: 0, status: "ativo" },
+  "joy": { salarioLiquido: 3498, custoTotalEstimado: 4800, rescisaoEstimada: 12500, status: "demissao_planejada" },
+  "gilberto": { salarioLiquido: 4554, custoTotalEstimado: 6300, rescisaoEstimada: 0, status: "ativo" },
+  "luiz": { salarioLiquido: 4250, custoTotalEstimado: 6000, rescisaoEstimada: 15000, status: "demissao_planejada" },
+  "juliana-galdino": { salarioLiquido: 6896, custoTotalEstimado: 6896, rescisaoEstimada: 0, status: "em_avaliacao" },
+};
+
+export const resumoFinanceiro = {
+  meses: [
+    { m: "Jan/2026", receita: 822581, despesa: 614838, resultado: 207743, inadimplencia: 42232 },
+    { m: "Fev/2026", receita: 583385, despesa: 584748, resultado: -1363, inadimplencia: 56604 },
+    { m: "Mar/2026", receita: 563843, despesa: 599324, resultado: -35480, inadimplencia: 48054 },
+    { m: "Abr/2026", receita: 523571, despesa: 786722, resultado: -263151, inadimplencia: 84198 },
+    { m: "Mai/2026", receita: 287108, despesa: 532231, resultado: -245124, inadimplencia: 171879 },
+  ],
+  bmaMensal: 138149,
+  betterMensal: 394082,
+  overheadMensal: 81597,
+  folhaTotalMensal: 56619,
+  economiaDemissoes: {
+    fase1: { mensal: 17300, anual: 207600, rescisao: 44000, pessoas: ["joy", "luiz", "stephanie"] },
+    fase2: { mensal: 6896, anual: 82752, rescisao: 0, pessoas: ["juliana-galdino"] },
+    fase3: { mensal: 5800, anual: 69600, rescisao: 0, pessoas: ["juliana-simonassi"] },
+  },
+  professoresPJ: [
+    { nome: "Lucas Oliveira F. Galdino", custoMensal: 3380 },
+    { nome: "Rodrigo S. de Andrade Guedes", custoMensal: 2725 },
+    { nome: "Laiza Victoria S. Teixeira", custoMensal: 2256 },
+    { nome: "Fernanda Silva Goncalves", custoMensal: 2045 },
+    { nome: "Mirla Viviane F. Quispe", custoMensal: 1654 },
+    { nome: "Carlos Santiago C. Moncada", custoMensal: 547 },
+  ],
+};
 
 export const cruzamentos: Cruzamento[] = [
   {
@@ -89,7 +138,7 @@ export const cruzamentos: Cruzamento[] = [
     id: "suporte-professores",
     atividade: "Suporte e Gestao de Professores",
     descricao: "4 pessoas interagem com professores sem fluxo unico definido",
-    pessoas: ["ariane", "val", "rapha-lima", "juliana"],
+    pessoas: ["ariane", "val", "rapha-lima", "juliana-simonassi"],
     impacto: "critico",
     problema: "Ariane e Val fazem suporte diario (faltas, reagendamentos). Rapha Lima faz gestao estrategica e pagamento. Juliana faz onboarding e relacionamento. Mas nao ha fluxo claro de quem faz o que, quando escalar, ou como registrar interacoes.",
     recomendacao: "Definir camadas: Nivel 1 (operacional diario) = Ariane/Val. Nivel 2 (pedagogico/onboarding) = Juliana. Nivel 3 (estrategico/pagamento) = Rapha Lima. Criar sistema de tickets para professores com escalacao automatica.",
@@ -480,7 +529,7 @@ export const matrizAtividades: Record<string, string[]> = {
     "Revisao/upload Learning Lab",
     "Producao Private Business",
   ],
-  juliana: [
+  "juliana-simonassi": [
     "Atendimento 1:1 alunos",
     "Apoio professores em sala",
     "Registro frequencia/ocorrencias",
