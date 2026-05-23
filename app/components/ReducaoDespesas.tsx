@@ -93,6 +93,8 @@ function daysAgo(iso: string | null | undefined): string {
   return `${Math.floor(days / 365)}a`;
 }
 
+type ViewMode = "rec" | "monthly";
+
 export default function ReducaoDespesas() {
   const [data, setData] = useState<Consolidado | null>(null);
   const [loading, setLoading] = useState(true);
@@ -101,6 +103,7 @@ export default function ReducaoDespesas() {
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState<"total" | "meetings" | "rs_aula">("total");
   const [hideZero, setHideZero] = useState(true);
+  const [viewMode, setViewMode] = useState<ViewMode>("rec");
   // Simulador 11→6: módulos marcados para REMOVER
   const [modulosRemover, setModulosRemover] = useState<Set<string>>(new Set());
 
@@ -215,15 +218,35 @@ export default function ReducaoDespesas() {
           onChange={(e) => setSearch(e.target.value)}
           className="flex-1 min-w-[200px] bg-transparent border border-[#334155] rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
         />
-        <select
-          value={sortBy}
-          onChange={(e) => setSortBy(e.target.value as "total" | "meetings" | "rs_aula")}
-          className="bg-[#0f172a] border border-[#334155] rounded-lg px-3 py-2 text-sm text-white focus:outline-none"
-        >
-          <option value="total">Ordenar por: R$ total 2026</option>
-          <option value="meetings">Ordenar por: # aulas</option>
-          <option value="rs_aula">Ordenar por: R$/aula</option>
-        </select>
+        <div className="flex bg-[#0f172a] border border-[#334155] rounded-lg overflow-hidden">
+          <button
+            onClick={() => setViewMode("rec")}
+            className={`px-3 py-2 text-xs font-medium transition-colors ${
+              viewMode === "rec" ? "bg-blue-600 text-white" : "text-slate-400 hover:text-white"
+            }`}
+          >
+            Por Recomendação
+          </button>
+          <button
+            onClick={() => setViewMode("monthly")}
+            className={`px-3 py-2 text-xs font-medium transition-colors ${
+              viewMode === "monthly" ? "bg-blue-600 text-white" : "text-slate-400 hover:text-white"
+            }`}
+          >
+            Por Mês
+          </button>
+        </div>
+        {viewMode === "rec" && (
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as "total" | "meetings" | "rs_aula")}
+            className="bg-[#0f172a] border border-[#334155] rounded-lg px-3 py-2 text-sm text-white focus:outline-none"
+          >
+            <option value="total">Ordenar por: R$ total 2026</option>
+            <option value="meetings">Ordenar por: # aulas</option>
+            <option value="rs_aula">Ordenar por: R$/aula</option>
+          </select>
+        )}
         <label className="flex items-center gap-2 text-xs text-slate-400 cursor-pointer">
           <input
             type="checkbox"
@@ -241,67 +264,153 @@ export default function ReducaoDespesas() {
       {/* Tabela */}
       <div className="bg-[#1e293b] rounded-xl border border-[#334155] overflow-hidden">
         <div className="overflow-x-auto scrollbar-thin">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-[#334155]">
-                <th className="text-left px-3 py-3 text-xs font-medium text-slate-400 sticky left-0 bg-[#1e293b] z-10 min-w-[260px]">
-                  Pessoa
-                </th>
-                <th className="text-left px-3 py-3 text-xs font-medium text-slate-400">Recom.</th>
-                <th className="text-right px-3 py-3 text-xs font-medium text-slate-400">R$ 2026</th>
-                <th className="text-right px-3 py-3 text-xs font-medium text-slate-400"># aulas</th>
-                <th className="text-right px-3 py-3 text-xs font-medium text-slate-400">R$/aula</th>
-                <th className="text-right px-3 py-3 text-xs font-medium text-slate-400">Últ. aula</th>
-                <th className="text-left px-3 py-3 text-xs font-medium text-slate-400">Status</th>
-                <th className="text-left px-3 py-3 text-xs font-medium text-slate-400">Motivo</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((p) => (
-                <tr key={p.nome} className="border-b border-[#334155]/50 hover:bg-white/5">
-                  <td className="px-3 py-2 sticky left-0 bg-[#1e293b] z-10">
-                    <div className="text-white font-medium">{p.nome}</div>
-                    {p.cpf_cnpj && (
-                      <div className="text-[10px] text-slate-500">{p.cpf_cnpj}</div>
-                    )}
-                    {p.categoria_excel && (
-                      <div className="text-[10px] text-slate-500">{p.categoria_excel}</div>
-                    )}
-                  </td>
-                  <td className="px-3 py-2">
-                    <span
-                      className={`px-2 py-0.5 rounded text-[10px] font-medium border ${REC_COLORS[p.recomendacao]}`}
-                    >
-                      {p.recomendacao}
-                    </span>
-                  </td>
-                  <td className="px-3 py-2 text-right text-white font-mono">{fmt(p.total_2026)}</td>
-                  <td className="px-3 py-2 text-right text-slate-300 font-mono">
-                    {p.meetings_2026 !== undefined ? p.meetings_2026 : "—"}
-                  </td>
-                  <td className="px-3 py-2 text-right text-slate-300 font-mono">
-                    {p.rs_por_aula ? fmt(p.rs_por_aula) : "—"}
-                  </td>
-                  <td className="px-3 py-2 text-right text-slate-300 text-xs">
-                    {daysAgo(p.last_meeting)}
-                  </td>
-                  <td className="px-3 py-2 text-xs text-slate-400">
-                    {p.status_portal || "—"}
-                  </td>
-                  <td className="px-3 py-2 text-xs text-slate-400 max-w-[300px]">
-                    {p.motivo}
-                  </td>
+          {viewMode === "rec" ? (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-[#334155]">
+                  <th className="text-left px-3 py-3 text-xs font-medium text-slate-400 sticky left-0 bg-[#1e293b] z-10 min-w-[260px]">
+                    Pessoa
+                  </th>
+                  <th className="text-left px-3 py-3 text-xs font-medium text-slate-400">Recom.</th>
+                  <th className="text-right px-3 py-3 text-xs font-medium text-slate-400">R$ 2026</th>
+                  <th className="text-right px-3 py-3 text-xs font-medium text-slate-400"># aulas</th>
+                  <th className="text-right px-3 py-3 text-xs font-medium text-slate-400">R$/aula</th>
+                  <th className="text-right px-3 py-3 text-xs font-medium text-slate-400">Últ. aula</th>
+                  <th className="text-left px-3 py-3 text-xs font-medium text-slate-400">Status</th>
+                  <th className="text-left px-3 py-3 text-xs font-medium text-slate-400">Motivo</th>
                 </tr>
-              ))}
-              {filtered.length === 0 && (
-                <tr>
-                  <td colSpan={8} className="px-3 py-8 text-center text-slate-500 text-sm">
-                    Nenhuma pessoa encontrada com os filtros atuais
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {filtered.map((p) => (
+                  <tr key={p.nome} className="border-b border-[#334155]/50 hover:bg-white/5">
+                    <td className="px-3 py-2 sticky left-0 bg-[#1e293b] z-10">
+                      <div className="text-white font-medium">{p.nome}</div>
+                      {p.cpf_cnpj && (
+                        <div className="text-[10px] text-slate-500">{p.cpf_cnpj}</div>
+                      )}
+                      {p.categoria_excel && (
+                        <div className="text-[10px] text-slate-500">{p.categoria_excel}</div>
+                      )}
+                    </td>
+                    <td className="px-3 py-2">
+                      <span
+                        className={`px-2 py-0.5 rounded text-[10px] font-medium border ${REC_COLORS[p.recomendacao]}`}
+                      >
+                        {p.recomendacao}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2 text-right text-white font-mono">{fmt(p.total_2026)}</td>
+                    <td className="px-3 py-2 text-right text-slate-300 font-mono">
+                      {p.meetings_2026 !== undefined ? p.meetings_2026 : "—"}
+                    </td>
+                    <td className="px-3 py-2 text-right text-slate-300 font-mono">
+                      {p.rs_por_aula ? fmt(p.rs_por_aula) : "—"}
+                    </td>
+                    <td className="px-3 py-2 text-right text-slate-300 text-xs">
+                      {daysAgo(p.last_meeting)}
+                    </td>
+                    <td className="px-3 py-2 text-xs text-slate-400">
+                      {p.status_portal || "—"}
+                    </td>
+                    <td className="px-3 py-2 text-xs text-slate-400 max-w-[300px]">
+                      {p.motivo}
+                    </td>
+                  </tr>
+                ))}
+                {filtered.length === 0 && (
+                  <tr>
+                    <td colSpan={8} className="px-3 py-8 text-center text-slate-500 text-sm">
+                      Nenhuma pessoa encontrada com os filtros atuais
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          ) : (() => {
+            // Vista Por Mês — pivot pessoa × mês
+            // Descobre meses presentes em qualquer pessoa filtrada (ordem cronológica)
+            const MESES_ORDER = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
+            const mesesSet = new Set<string>();
+            filtered.forEach((p) => Object.keys(p.meses || {}).forEach((m) => mesesSet.add(m)));
+            const meses = Array.from(mesesSet).sort((a, b) =>
+              MESES_ORDER.indexOf(a.split("/")[0]) - MESES_ORDER.indexOf(b.split("/")[0])
+            );
+            const arrSorted = [...filtered].sort((a, b) => b.total_2026 - a.total_2026);
+            const totalsMes: Record<string, number> = {};
+            arrSorted.forEach((p) =>
+              Object.entries(p.meses || {}).forEach(([m, v]) => {
+                totalsMes[m] = (totalsMes[m] || 0) + v;
+              })
+            );
+            return (
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-[#334155]">
+                    <th className="text-left px-3 py-3 text-xs font-medium text-slate-400 sticky left-0 bg-[#1e293b] z-10 min-w-[240px]">
+                      Pessoa
+                    </th>
+                    <th className="text-left px-3 py-3 text-xs font-medium text-slate-400">Rec.</th>
+                    {meses.map((m) => (
+                      <th key={m} className="text-right px-2 py-3 text-xs font-medium text-slate-400 min-w-[80px]">
+                        {m.split("/")[0]}
+                      </th>
+                    ))}
+                    <th className="text-right px-3 py-3 text-xs font-medium text-slate-300 min-w-[100px] bg-blue-500/5">
+                      Total
+                    </th>
+                    <th className="text-left px-2 py-3 text-xs font-medium text-slate-400">Fontes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {arrSorted.map((p) => (
+                    <tr key={p.nome} className="border-b border-[#334155]/50 hover:bg-white/5">
+                      <td className="px-3 py-2 sticky left-0 bg-[#1e293b] z-10">
+                        <div className="text-white font-medium">{p.nome}</div>
+                        {p.cpf_cnpj && (
+                          <div className="text-[10px] text-slate-500">{p.cpf_cnpj}</div>
+                        )}
+                      </td>
+                      <td className="px-3 py-2">
+                        <span className={`px-1.5 py-0.5 rounded text-[9px] font-medium border ${REC_COLORS[p.recomendacao]}`}>
+                          {p.recomendacao}
+                        </span>
+                      </td>
+                      {meses.map((m) => {
+                        const v = (p.meses || {})[m] || 0;
+                        return (
+                          <td key={m} className={`px-2 py-2 text-right font-mono ${v === 0 ? "text-slate-600" : "text-slate-300"}`}>
+                            {v === 0 ? "—" : fmt(v)}
+                          </td>
+                        );
+                      })}
+                      <td className="px-3 py-2 text-right text-white font-mono font-bold bg-blue-500/5">
+                        {fmt(p.total_2026)}
+                      </td>
+                      <td className="px-2 py-2 text-[10px] text-slate-500">
+                        {p.fontes?.map((f) => f === "despesas" ? "Better" : "BMA").join("+")}
+                      </td>
+                    </tr>
+                  ))}
+                  {/* Linha de totais */}
+                  <tr className="border-t-2 border-[#334155] bg-[#0f172a]/50 font-bold">
+                    <td className="px-3 py-2 sticky left-0 bg-[#0f172a] z-10 text-white">
+                      TOTAL ({arrSorted.length} pessoas)
+                    </td>
+                    <td></td>
+                    {meses.map((m) => (
+                      <td key={m} className="px-2 py-2 text-right text-blue-400 font-mono">
+                        {fmt(totalsMes[m] || 0)}
+                      </td>
+                    ))}
+                    <td className="px-3 py-2 text-right text-white font-mono bg-blue-500/10">
+                      {fmt(arrSorted.reduce((s, p) => s + p.total_2026, 0))}
+                    </td>
+                    <td></td>
+                  </tr>
+                </tbody>
+              </table>
+            );
+          })()}
         </div>
       </div>
 
