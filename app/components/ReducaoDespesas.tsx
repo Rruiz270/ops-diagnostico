@@ -21,6 +21,27 @@ interface Pessoa {
   recomendacao: Recomendacao;
   motivo: string;
   meses?: Record<string, number>;
+  modulos?: Record<string, number>;
+  privates_alunos_ativos?: number;
+  privates_alunos_total?: number;
+  coordenador_privates?: boolean;
+}
+
+interface ModuloTopProf {
+  nome: string;
+  aulas: number;
+  custo_alocado: number;
+}
+interface Modulo {
+  id: string;
+  nome: string;
+  ativo: boolean;
+  aulas_2026: number;
+  profs_2026: number;
+  custo_alocado: number;
+  n_profs_pagos: number;
+  ultima_aula: string | null;
+  top_profs: ModuloTopProf[];
 }
 
 interface Consolidado {
@@ -33,6 +54,7 @@ interface Consolidado {
     por_recomendacao: Record<Recomendacao, { n: number; valor: number }>;
   };
   pessoas: Pessoa[];
+  modulos?: Modulo[];
 }
 
 const REC_COLORS: Record<Recomendacao, string> = {
@@ -79,6 +101,8 @@ export default function ReducaoDespesas() {
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState<"total" | "meetings" | "rs_aula">("total");
   const [hideZero, setHideZero] = useState(true);
+  // Simulador 11→6: módulos marcados para REMOVER
+  const [modulosRemover, setModulosRemover] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetch("https://www.institutoi10.com.br/better-financeiro/pessoas_consolidado.json")
@@ -280,6 +304,123 @@ export default function ReducaoDespesas() {
           </table>
         </div>
       </div>
+
+      {/* ====== Seção: Por Módulo (Community Alumni — base p/ 11→6) ====== */}
+      {data.modulos && data.modulos.length > 0 && (() => {
+        const ativos = data.modulos.filter((m) => m.ativo).sort((a, b) => b.aulas_2026 - a.aulas_2026);
+        const economia = ativos
+          .filter((m) => modulosRemover.has(m.id))
+          .reduce((s, m) => s + m.custo_alocado, 0);
+        const aulasRemovidas = ativos
+          .filter((m) => modulosRemover.has(m.id))
+          .reduce((s, m) => s + m.aulas_2026, 0);
+        // Profs impactados: que dependem ≥80% de módulos a remover
+        const profsImpactados = (data.pessoas || []).filter((p) => {
+          if (!p.modulos) return false;
+          const aulasTotal = Object.values(p.modulos).reduce((s, n) => s + n, 0);
+          if (aulasTotal === 0) return false;
+          const aulasRemov = Object.entries(p.modulos)
+            .filter(([nome]) => ativos.find((m) => m.nome === nome && modulosRemover.has(m.id)))
+            .reduce((s, [, n]) => s + n, 0);
+          return aulasRemov / aulasTotal >= 0.8;
+        });
+
+        return (
+          <div className="bg-[#1e293b] rounded-xl border border-[#334155] p-4 space-y-3">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div>
+                <h3 className="text-base font-bold text-white">
+                  Por Módulo — Community Alumni
+                </h3>
+                <p className="text-xs text-slate-500">
+                  {ativos.length} módulos ativos · simulador 11→6: marque os módulos
+                  candidatos a remover.
+                </p>
+              </div>
+              {modulosRemover.size > 0 && (
+                <div className="flex items-center gap-4 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">
+                  <div>
+                    <div className="text-[10px] text-slate-500">Econ. potencial 2026</div>
+                    <div className="text-sm font-bold text-red-400">{fmt(economia)}</div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] text-slate-500">Aulas removidas</div>
+                    <div className="text-sm font-bold text-amber-400">{aulasRemovidas}</div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] text-slate-500">Profs ≥80% impactados</div>
+                    <div className="text-sm font-bold text-purple-400">{profsImpactados.length}</div>
+                  </div>
+                  <button
+                    onClick={() => setModulosRemover(new Set())}
+                    className="text-[10px] text-slate-400 hover:text-white underline"
+                  >
+                    limpar
+                  </button>
+                </div>
+              )}
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-[#334155]">
+                    <th className="text-left px-2 py-2 text-xs text-slate-400 w-8"></th>
+                    <th className="text-left px-2 py-2 text-xs text-slate-400">Módulo</th>
+                    <th className="text-right px-2 py-2 text-xs text-slate-400">aulas 2026</th>
+                    <th className="text-right px-2 py-2 text-xs text-slate-400"># profs</th>
+                    <th className="text-right px-2 py-2 text-xs text-slate-400">custo alocado</th>
+                    <th className="text-right px-2 py-2 text-xs text-slate-400">R$/aula</th>
+                    <th className="text-left px-2 py-2 text-xs text-slate-400">top professores</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {ativos.map((m) => {
+                    const sel = modulosRemover.has(m.id);
+                    const rsAula = m.aulas_2026 ? m.custo_alocado / m.aulas_2026 : 0;
+                    return (
+                      <tr key={m.id} className={`border-b border-[#334155]/50 hover:bg-white/5 ${sel ? "bg-red-500/10" : ""}`}>
+                        <td className="px-2 py-1.5">
+                          <input
+                            type="checkbox"
+                            checked={sel}
+                            onChange={(e) => {
+                              const s = new Set(modulosRemover);
+                              if (e.target.checked) s.add(m.id); else s.delete(m.id);
+                              setModulosRemover(s);
+                            }}
+                            className="cursor-pointer"
+                          />
+                        </td>
+                        <td className="px-2 py-1.5 text-white font-medium">{m.nome}</td>
+                        <td className="px-2 py-1.5 text-right text-slate-300 font-mono">{m.aulas_2026}</td>
+                        <td className="px-2 py-1.5 text-right text-slate-300 font-mono">{m.n_profs_pagos}</td>
+                        <td className="px-2 py-1.5 text-right text-white font-mono">{fmt(m.custo_alocado)}</td>
+                        <td className={`px-2 py-1.5 text-right font-mono ${rsAula > 200 ? "text-amber-400" : "text-slate-300"}`}>
+                          {fmt(rsAula)}
+                        </td>
+                        <td className="px-2 py-1.5 text-xs text-slate-400">
+                          {m.top_profs.slice(0, 3).map((p, i) => (
+                            <span key={i}>
+                              {i > 0 && " · "}
+                              <span className="text-slate-300">{p.nome.split(" ")[0]} {p.nome.split(" ").slice(-1)[0]}</span>
+                              <span className="text-slate-500"> ({p.aulas})</span>
+                            </span>
+                          ))}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <p className="text-[10px] text-slate-600">
+              <strong>R$/aula</strong> alocado = soma do custo proporcional dos professores
+              (custo total × aulas naquele módulo / total de aulas do prof). Em amarelo
+              quando &gt; R$ 200/aula. Aulas Particulares é private (não conta no 11→6).
+            </p>
+          </div>
+        );
+      })()}
 
       <div className="text-xs text-slate-500 space-y-1">
         <p>
